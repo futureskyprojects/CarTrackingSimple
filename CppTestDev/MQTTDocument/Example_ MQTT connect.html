@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<!-- saved from url=(0167)https://www.digi.com/resources/documentation/Digidocs/90002253/Reference/r_example_mqtt.htm?TocPath=XBee%20connection%20examples%7CGet%20started%20with%20MQTT%7C_____1 -->
+<html xmlns:madcap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" data-mc-search-type="Stem" data-mc-help-system-file-name="Default.xml" data-mc-path-to-help-system="../" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic" data-mc-preload-images="false" data-mc-in-preview-mode="false" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]" style="" class="js no-touch svg inlinesvg svgclippaths no-ie8compat fa-events-icons-ready"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>Example: MQTT connect</title>
+        <meta http-equiv="pragma" content="no-cache">
+        <meta http-equiv="expires" content="-1">
+        <meta http-equiv="refresh" content="86400">
+        <script type="text/javascript" async="" src="./Example_ MQTT connect_files/ga.js.tải xuống"></script><script type="text/javascript">
+			/* <![CDATA[ */
+			var _gaq = _gaq || [];
+			_gaq.push(['_setAccount', 'UA-335215-4']);
+			_gaq.push(['_setDomainName', 'digi.com']);
+			_gaq.push(['_setAllowLinker', true]);
+			_gaq.push(['_trackPageview']);
+			(function ()
+			{ var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true; ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js'; var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s); }
+			)();
+			/* ]]> */
+		</script>
+        <link href="./Example_ MQTT connect_files/Slideshow.css" rel="stylesheet">
+        <link href="./Example_ MQTT connect_files/TextEffects.css" rel="stylesheet">
+        <link href="./Example_ MQTT connect_files/Topic.css" rel="stylesheet">
+        <link href="./Example_ MQTT connect_files/Styles.css" rel="stylesheet">
+        <link href="./Example_ MQTT connect_files/Tablet.css" rel="stylesheet">
+        <link href="./Example_ MQTT connect_files/Mobile.css" rel="stylesheet">
+        <link href="./Example_ MQTT connect_files/footer.css" rel="stylesheet">
+        <link href="./Example_ MQTT connect_files/DigiStyles.css" rel="stylesheet">
+        <link href="./Example_ MQTT connect_files/tablestyle.css" rel="stylesheet">
+        <script src="./Example_ MQTT connect_files/custom.modernizr.js.tải xuống">
+        </script>
+        <script src="./Example_ MQTT connect_files/jquery.min.js.tải xuống">
+        </script>
+        <script src="./Example_ MQTT connect_files/require.min.js.tải xuống">
+        </script>
+        <script src="./Example_ MQTT connect_files/require.config.js.tải xuống">
+        </script>
+        <script src="./Example_ MQTT connect_files/foundation.min.js.tải xuống">
+        </script><meta class="foundation-mq-small"><meta class="foundation-mq-medium"><meta class="foundation-mq-large"><meta class="foundation-mq-xlarge"><meta class="foundation-mq-xxlarge"><style></style>
+        <script src="./Example_ MQTT connect_files/plugins.min.js.tải xuống">
+        </script>
+        <script src="./Example_ MQTT connect_files/MadCapAll.js.tải xuống">
+        </script>
+        <script src="./Example_ MQTT connect_files/a9ea27f946.js.tải xuống">
+        </script><link href="./Example_ MQTT connect_files/a9ea27f946.css" media="all" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="./Example_ MQTT connect_files/prettify.css"><script type="text/javascript" charset="utf-8" async="" data-requirecontext="_" data-requiremodule="../Data/Breakpoints.js" src="./Example_ MQTT connect_files/Breakpoints.js.tải xuống"></script><script type="text/javascript" charset="utf-8" async="" data-requirecontext="_" data-requiremodule="../Data/Language.js" src="./Example_ MQTT connect_files/Language.js.tải xuống"></script><script type="text/javascript" charset="utf-8" async="" data-requirecontext="_" data-requiremodule="../Data/Tocs/xbee3_cellular_Cat1_ug.js" src="./Example_ MQTT connect_files/xbee3_cellular_Cat1_ug.js.tải xuống"></script><script type="text/javascript" charset="utf-8" async="" data-requirecontext="_" data-requiremodule="../Data/Tocs/xbee3_cellular_Cat1_ug_Chunk0.js" src="./Example_ MQTT connect_files/xbee3_cellular_Cat1_ug_Chunk0.js.tải xuống"></script><script type="text/javascript" charset="utf-8" async="" data-requirecontext="_" data-requiremodule="../Data/Tocs/xbee3_cellular_Cat1_ug_Chunk1.js" src="./Example_ MQTT connect_files/xbee3_cellular_Cat1_ug_Chunk1.js.tải xuống"></script></head>
+    <body>
+        <p class="MCWebHelpFramesetLink MCWebHelpFramesetLinkTop"><a href="https://www.digi.com/resources/documentation/Digidocs/90002253/Default.htm#Reference/r_example_mqtt.htm">Show Contents</a>
+        </p>
+        <div class="nocontent">
+            <div class="MCBreadcrumbsBox_0 breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="10" data-mc-toc="True" data-mc-chunk="Data/Toc.xml"><span class="MCBreadcrumbsPrefix">You are here: </span>
+            <a href="https://www.digi.com/resources/documentation/Digidocs/90002253/Containers/cont_examples.htm?TocPath=XBee%20connection%20examples|_____0" class="MCBreadcrumbsLink">XBee connection examples</a><span class="MCBreadcrumbsDivider"> &gt; </span><a href="https://www.digi.com/resources/documentation/Digidocs/90002253/Concepts/c_mqtt.htm?TocPath=XBee%20connection%20examples|Get%20started%20with%20MQTT|_____0" class="MCBreadcrumbsLink">Get started with MQTT</a><span class="MCBreadcrumbsDivider"> &gt; </span><span class="MCBreadcrumbsSelf">Example: MQTT connect</span></div>
+        </div>
+        <div id="content">
+            <h1 class="Reference">Example: MQTT connect</h1>
+            <p>This example provides insight into the structure of packets in MQTT as well as the interaction between the client and broker. MQTT uses different packets to accomplish tasks such as connecting, subscribing, and publishing.  You can use XCTU to perform a basic example of sending a broker a connect  packet and receiving the response from the server, without requiring any coding. This is a good way to see how the client interacts with the broker and what a packet looks like. The following table is an example connect  packet:</p>
+            <table style="mc-table-style: url(&#39;../Resources/TableStyles/tablestyle.css&#39;);margin-left: 0;margin-right: auto;width: 100%;" class="TableStyle-tablestyle" cellspacing="0">
+                <colgroup><col class="TableStyle-tablestyle-Column-Regular">
+                <col class="TableStyle-tablestyle-Column-Regular">
+                <col class="TableStyle-tablestyle-Column-Regular">
+                </colgroup><thead>
+                    <tr class="TableStyle-tablestyle-Head-Header1">
+                        <th class="TableStyle-tablestyle-HeadE-Regular-Header1">&nbsp;</th>
+                        <th class="TableStyle-tablestyle-HeadE-Regular-Header1">Description</th>
+                        <th class="TableStyle-tablestyle-HeadD-Regular-Header1">Hex value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td colspan="3" class="TableStyle-tablestyle-BodyD-Regular-Row1">CONNECT packet fixed header</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 1</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">Control packet type</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0x10</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 2</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">Remaining length</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0x10</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td colspan="3" class="TableStyle-tablestyle-BodyD-Regular-Row1">CONNECT packet variable header</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td colspan="3" class="TableStyle-tablestyle-BodyD-Regular-Row1">Protocol name</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 1</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">Length MSB (0)</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0x00</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 2</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">Length LSB (4)</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0x04</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 3</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">(M)</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0x4D</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 4</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">(Q)</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0x51</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 5</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">(T)</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0x54</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 6</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">(T)</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0x54</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td colspan="3" class="TableStyle-tablestyle-BodyD-Regular-Row1">Protocol level</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 7</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">Level (4)</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0x04</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td colspan="3" class="TableStyle-tablestyle-BodyD-Regular-Row1">Connect flags</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 8</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">
+                            <p>CONNECT flags byte, see the table below for the bits.</p>
+                        </td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0X02</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td colspan="3" class="TableStyle-tablestyle-BodyD-Regular-Row1">Keep alive</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 9</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">Keep Alive MSB (0)</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0X00</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 10</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">Keep Alive LSB (60)</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0X3C</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">Client ID</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">&nbsp;</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 11</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">Length MSB (0)</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0x00</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 12</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">Length LSB (4)</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0x04</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 13</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">(D)</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0x44</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 14</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">(I)</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0x49</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">byte 15</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">(G)</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">0x47</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyB-Regular-Row1">byte 16</td>
+                        <td class="TableStyle-tablestyle-BodyB-Regular-Row1">(I)</td>
+                        <td class="TableStyle-tablestyle-BodyA-Regular-Row1">0x49</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>The following table describes the fields in the packet:</p>
+            <table style="mc-table-style: url(&#39;../Resources/TableStyles/tablestyle.css&#39;);width: 100%;margin-left: 0;margin-right: auto;" class="TableStyle-tablestyle" cellspacing="0">
+                <colgroup><col class="TableStyle-tablestyle-Column-Regular">
+                <col class="TableStyle-tablestyle-Column-Regular">
+                </colgroup><thead>
+                    <tr class="TableStyle-tablestyle-Head-Header1">
+                        <th class="TableStyle-tablestyle-HeadE-Regular-Header1">
+                            <p>Field&nbsp;name</p>
+                        </th>
+                        <th class="TableStyle-tablestyle-HeadD-Regular-Header1">
+                            <p>Description</p>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">
+                            <p>Protocol&nbsp;Name</p>
+                        </td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">
+                            <p>The
+ connect packet starts with the protocol name, which is MQTT. The length of the protocol name (in bytes) is
+ immediately before the name itself.</p>
+                        </td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">
+                            <p>Protocol&nbsp;Level</p>
+                        </td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">
+                            <p>Refers to the version of MQTT in use, in this case
+ a value of 4 indicates MQTT
+ version 3.1.1.</p>
+                        </td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">
+                            <p>Connect
+ Flags</p>
+                        </td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">
+                            <p>Indicate
+ certain aspects of the packet. For simplicity, this example only sets the Clean Session flag, which indicates
+ to the client and broker to discard any previous session and start a new one.</p>
+                        </td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">
+                            <p>Keep Alive</p>
+                        </td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">
+                            <p>How
+ often the client pings the broker to keep the connection alive; in this
+ example it is set to 60 seconds.</p>
+                        </td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyB-Regular-Row1">
+                            <p>Client  ID</p>
+                        </td>
+                        <td class="TableStyle-tablestyle-BodyA-Regular-Row1">
+                            <p>The length of the ID (in bytes) precedes the ID itself. Each client
+ connecting to a broker must have a unique client ID.  In the example, the ID is DIGI. When using the
+ Paho MQTT Python libraries, a random alphanumeric ID is generated if you do
+ not specify an  ID.</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>The following table provides the CONNECT flag bits from byte 8, the CONNECT flags byte.</p>
+            <table style="mc-table-style: url(&#39;../Resources/TableStyles/tablestyle.css&#39;);margin-left: 0;margin-right: auto;width: 100%;" class="TableStyle-tablestyle" cellspacing="0">
+                <colgroup><col class="TableStyle-tablestyle-Column-Regular">
+                <col class="TableStyle-tablestyle-Column-Regular">
+                <col class="TableStyle-tablestyle-Column-Regular">
+                <col class="TableStyle-tablestyle-Column-Regular">
+                <col class="TableStyle-tablestyle-Column-Regular">
+                <col class="TableStyle-tablestyle-Column-Regular">
+                <col class="TableStyle-tablestyle-Column-Regular">
+                <col class="TableStyle-tablestyle-Column-Regular">
+                <col class="TableStyle-tablestyle-Column-Regular">
+                </colgroup><thead>
+                    <tr class="TableStyle-tablestyle-Head-Header1">
+                        <th class="TableStyle-tablestyle-HeadE-Regular-Header1">CONNECT
+ Flag Bit(s)</th>
+                        <th class="TableStyle-tablestyle-HeadE-Regular-Header1">Bit 7</th>
+                        <th class="TableStyle-tablestyle-HeadE-Regular-Header1">Bit 6</th>
+                        <th class="TableStyle-tablestyle-HeadE-Regular-Header1">Bit 5</th>
+                        <th class="TableStyle-tablestyle-HeadE-Regular-Header1">Bit 4</th>
+                        <th class="TableStyle-tablestyle-HeadE-Regular-Header1">Bit 3</th>
+                        <th class="TableStyle-tablestyle-HeadE-Regular-Header1">Bit 2</th>
+                        <th class="TableStyle-tablestyle-HeadE-Regular-Header1">Bit 1</th>
+                        <th class="TableStyle-tablestyle-HeadD-Regular-Header1">Bit 0</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">User name flag</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">0</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">&nbsp;</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">Password flag</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">0</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">&nbsp;</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">Will
+ retain</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">0</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">&nbsp;</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">Will QoS</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">0</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">0</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">&nbsp;</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">Will flag</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">0</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">&nbsp;</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">Clean session</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyE-Regular-Row1">1</td>
+                        <td class="TableStyle-tablestyle-BodyD-Regular-Row1">&nbsp;</td>
+                    </tr>
+                    <tr class="TableStyle-tablestyle-Body-Row1">
+                        <td class="TableStyle-tablestyle-BodyB-Regular-Row1">Reserved</td>
+                        <td class="TableStyle-tablestyle-BodyB-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyB-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyB-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyB-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyB-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyB-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyB-Regular-Row1">&nbsp;</td>
+                        <td class="TableStyle-tablestyle-BodyA-Regular-Row1">0</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p>&nbsp;</p>
+        <p>© <span class="Digi_Standard_VariablesCopyright_Year">2019</span> <span class="Digi_Standard_VariablesCompany_Name_Long">Digi International Inc.</span> All rights reserved.<br><span style="font-style: italic;" class="SystemTitle">Example: MQTT connect</span> updated on <span class="Digi_Standard_VariablesUpdated on">11 Jun 2018 09:41 AM</span></p>
+        <div id="FooterTable">
+            <table style="width: 100%;margin-left: 0;margin-right: auto;caption-side: top;mc-table-style: url(&#39;../Resources/TableStyles/footer.css&#39;);" cellspacing="0" class="TableStyle-footer">
+                <colgroup><col style="width: 50%;" class="TableStyle-footer-Column-Column1">
+                <col class="TableStyle-footer-Column-Column1" style="width: 50%;">
+                </colgroup><thead>
+                    <tr class="TableStyle-footer-Head-Header1">
+                        <th class="TableStyle-footer-HeadE-Column1-Header1">
+                            <p>DOCUMENT RESOURCES</p>
+                        </th>
+                        <th class="TableStyle-footer-HeadD-Column1-Header1">
+                            <p>DIGI RESOURCES</p>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="TableStyle-footer-Body-Body1">
+                        <td class="TableStyle-footer-BodyB-Column1-Body1">
+                            <p><a href="https://www.digi.com/resources/documentation/Digidocs/90002253/Common/copyright.htm" class="MCTopicPopup MCTopicPopupHotSpot a MCTopicPopup_Closed" title="Copyright" data-mc-state="closed">Copyright</a>
+                            </p>
+                            <p><a href="https://www.digi.com/products/xbee-rf-solutions/embedded-cellular-modems/xbee3-cellular-lte-cat-1" target="_blank" title="Go to product page" alt="Go to product page">Product page</a>
+                            </p>
+                            <p><a href="http://www.digi.com/support/supporttype?type=documentation" target="_blank" title="Browse documentation" alt="Browse documentation">More documentation</a>
+                            </p>
+                            <p><a href="http://www.digi.com/resources/documentation/digidocs/PDFs/90002253.pdf" target="_blank" title="View PDF" alt="View PDF"><img src="./Example_ MQTT connect_files/PDF.png" title="Download PDF" alt="Download PDF"> PDF</a>
+                            </p>
+                        </td>
+                        <td class="TableStyle-footer-BodyA-Column1-Body1">
+                            <p><a href="http://www.digi.com/company" target="_blank" title="About us" alt="About us">About us</a>
+                            </p>
+                            <p><a href="http://www.digi.com/contactus?t=DBN2" target="_blank" title="Contact us" alt="Contact us">Contact us</a>
+                            </p>
+                            <p><a href="http://www.digi.com/support" target="_blank" title="Support" alt="Support">Support</a>
+                            </p>
+                            <p><a href="https://twitter.com/digidotcom" target="_blank" title="https://twitter.com/digidotcom" alt="https://twitter.com/digidotcom"><img src="./Example_ MQTT connect_files/nav-social-twitter.png" title="twitter" alt="twitter"> </a><a href="https://www.facebook.com/digi.international/timeline" target="_blank" title="https://www.facebook.com/digi.international/timeline" alt="https://www.facebook.com/digi.international/timeline"><img src="./Example_ MQTT connect_files/nav-social-facebook.png" title="facebook" alt="facebook"> </a><a href="https://www.linkedin.com/company-beta/6245?pathWildcard=6245" target="_blank" title="https://www.linkedin.com/company-beta/6245?pathWildcard=6245" alt="https://www.linkedin.com/company-beta/6245?pathWildcard=6245"><img src="./Example_ MQTT connect_files/nav-social-linkedin.png" title="linked in" alt="linked in"> </a><a href="https://www.youtube.com/user/Digidotcom" target="_blank" title="https://www.youtube.com/user/Digidotcom" alt="https://www.youtube.com/user/Digidotcom"><img src="./Example_ MQTT connect_files/nav-social-youtube.png" title="youtube" alt="youtube"></a>
+                            </p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <script>
+		///*<![CDATA[*////*]]>*/
+	    </script>
+        <script src="./Example_ MQTT connect_files/prism.js.tải xuống">
+        </script>
+        <script src="./Example_ MQTT connect_files/prism.js.tải xuống">
+        </script>
+        <script src="./Example_ MQTT connect_files/prismCopyFlare.js.tải xuống">
+        </script>
+    
+    
+        <meta http-equiv="pragma" content="no-cache">
+        <meta http-equiv="expires" content="-1">
+        <meta http-equiv="refresh" content="86400">
+    
+</body></html>

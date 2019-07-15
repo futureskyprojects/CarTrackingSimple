@@ -1,0 +1,32 @@
+﻿/*
+ * prismFlareCopy - adds a copy button to Prism-formatted code samples
+ * requires prism (prismjs.com)
+ * @version: v1.2 (2017-05-05) 
+ * 1.1 - removes ranges before creating range (Chromium issue 353069)
+ * 1.2 - uses MC's name feature vs classes since Flare can only apply 1 class in UI
+ * @author: Scott DeLoach (www.clickstart.net)
+ * @license: MIT
+ */
+ 
+$('pre[data-mc-target-name="copytoclipboard"]').prepend('<div class="toolbar"><div class="toolbar-item"><a class="btnCopy">Copy</a></div></div>');
+
+$('.btnCopy').click(function(){
+$(this).text('');
+btnIndex =  $('.btnCopy').index(this);
+cCode = $('pre[data-mc-target-name="copytoclipboard"]')[ btnIndex ];
+	document.getSelection().removeAllRanges();
+	var range = document.createRange();  
+	range.selectNode(cCode);
+	window.getSelection().addRange(range);
+	document.execCommand('copy');
+	document.getSelection().removeAllRanges();
+	$(".btnCopy:eq(" +btnIndex+")").text('Copied');
+	resetText(btnIndex);
+});
+
+
+function resetText(btnIndex) {
+	setTimeout(function () {
+		$(".btnCopy:eq(" +btnIndex+")").text('Copy');
+	}, 4000);
+}
