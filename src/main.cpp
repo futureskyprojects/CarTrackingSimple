@@ -1,22 +1,21 @@
 #include <Arduino.h>
 #include <SoftwareSerial.h>
-#include <stdio.h>
 
 #define DEBUG true
 #define gpsPin 5
 #define RX 3
 #define TX 2
 
-#define TN_SIM_ON_PIN A3
-#define TN_SERVER_CONNECTED_PIN A2
-#define TN_GPS_FIX_PIN A1
-#define TN_SEND_DATA_PIN A0
+#define PIN_SIM808_PWR A0   // Báo nguồn
+#define PIN_SIM808_DATA A1  // Đang gửi dữ liệu
+#define PIN_SIM808_GPS A2   // Báo GPS
+#define PIN_SIM808_ERROR A3 // Báo cảnh - Báo lỗi
 
 SoftwareSerial mySerial(RX, TX);
 /*------------- USER INPUT --------------------------------*/
 String deviceIMEI = "";
-char *serverAddress; // mqtt broker ip
-char *serverPort;    //mqtt broker port
+char *serverAddress;
+char *serverPort;
 char *gpsParamPrefix;
 char *imeiParamPrefix;
 /*---------------------------------------------------------*/
@@ -37,6 +36,14 @@ void getSetUp(void);
 void pwrGps(void);
 void getGpsData(void);
 
+void waitSim808WakeUp()
+{
+  while (sendData("AT", 1000, DEBUG).indexOf("OK") < 0)
+  {
+    delay(1000);
+  }
+}
+
 void setup()
 {
   pinMode(TN_GPS_FIX_PIN, OUTPUT);
@@ -48,23 +55,16 @@ void setup()
   digitalWrite(TN_SEND_DATA_PIN, HIGH);
   digitalWrite(TN_SERVER_CONNECTED_PIN, HIGH);
   digitalWrite(TN_SIM_ON_PIN, HIGH);
-
   delay(500);
-
   digitalWrite(TN_GPS_FIX_PIN, LOW);
   digitalWrite(TN_SEND_DATA_PIN, LOW);
   digitalWrite(TN_SERVER_CONNECTED_PIN, LOW);
   digitalWrite(TN_SIM_ON_PIN, LOW);
-
   delay(500);
-
   Serial.begin(9600);   // Đặt serial baudrate của UNO là 9600
   mySerial.begin(9600); // Đặt serial baudrate của Sim808 là 9600 tương đương
 
-  while (sendData("AT", 1000, DEBUG).indexOf("OK") < 0)
-  {
-    delay(1000);
-  }
+  waitSim808WakeUp();
 
   sendData("ATE0", 1000, DEBUG);
 
