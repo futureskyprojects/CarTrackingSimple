@@ -1,13 +1,5 @@
 #include <CarTracking.h>
 
-int signalPwr = LOW;   // Biến lưu trữ trạng thái của đèn hiệu nguồn
-int signalData = LOW;  // Biến lưu trữ trạng thái của đền hiệu dữ liệu
-int signalGps = LOW;   // Biến lưu trữ dữ liệu của đèn hiệu GPS
-int signalError = LOW; // Biến lưu trữ trạng thái của đèn hiệu lỗi
-
-int PIN_LIST[] = {PIN_SIGNAL_PWR, PIN_SIGNAL_DATA, PIN_SIGNAL_GPS, PIN_SIGNAL_ERROR}; // Danh sách các chân đèn hiệu
-int *signalAddr[] = {&signalPwr, &signalData, &signalGps, &signalError};              // Danh sách trạng thái của các chân đèn hiệu
-
 SoftwareSerial sim808Serial(RX, TX); // Tiến hành khai báo cổng giao tiếp serial cho sim808
 String deviceIMEI = "";              // Biến lưu trữ IMEI của thiết bị
 
@@ -20,7 +12,9 @@ char *balanceParamPrefix; // Biến lưu trữ giá trị định hình cho tham
 char *checkBalanceSyntax; // Biến lưu trữ cú pháp tin nhắn kiểm tra tài khoản của sim hiện hành
 
 /*------------------------------------- Khai báo các biến toàn cục và chiếm hữu sẵn bộ nhớ cho chúng --------------------*/
-String gpsData = "";      // Biến lưu trữ giá trị trả về của GPS
+String gpsData = ""; // Biến lưu trữ giá trị trả về của GPS
+String currentLocationDataType = "RMC";
+String networkLocation = "";
 int MissMessageCount = 0; // Biến lưu trữ số gói tin lỗi liên tiếp hiện tại của thiết bị
 int nextActionCode = 0;   // Biến lưu trữ giá trị của hành động tiếp theo để yêu cầu cho module thực hiện
 
@@ -32,9 +26,9 @@ boolean isGettingGpsData = false;    // Cờ kiểm tra xem có đang lấy dữ
 boolean isOverMissedMessage = false; // Cờ kiểm tra xem thiết bị có gửi mất gói tin vượt quá giới hạn hay chưa
 boolean isGprsAvailable = false;     // Cờ kiểm tra xem GPRS có đang hoạt động và có thể gửi tin hay không
 boolean isGetRawGpsLocationData = false;
-//boolean isRequestCheckSimBalance = false; // Cờ kiểm tra xem có yêu cầu kiểm tra tài khoản từ server hay không
+boolean isAlwaysGetNetworkLocation = false;
 
-/*----*/
+/*----------------------------------- Khai báo cấu trúc chứa dữ liệu trả về từ server ------------------------------------*/
 struct _SendResult
 {
     bool sendStatusCode = false;
@@ -42,176 +36,6 @@ struct _SendResult
 } sendResult;
 
 /*------------------------------------ Tường minh các phương thức đã được khai báo ---------------------------------------*/
-void setDigitalSignal(int Pin, int state) // Hàm cập nhật trạng thái tín hiệu cho các chân nằm trong danh sách đèn hiệu
-{
-    for (size_t i = 0; i < sizeof(PIN_LIST) / sizeof(int); i++) // Quét trong danh sách các chân đèn hiệu
-    {
-        if (Pin == PIN_LIST[i]) // Nếu chân nhập vào có trong danh sách chân đèn hiệu
-        {
-            **(signalAddr + i) = state;                    // Thì cập nhật trạng thái của chân đó trong danh sách trạng thái của các chân đèn hiệu
-            digitalWrite(PIN_LIST[i], **(signalAddr + i)); // Sau đó thực hiện cập nhật trạng thái số của chân
-        }
-    }
-}
-
-// Kéo nút nguồn, phườn thức này khiến cho sim808 đổi trạng thái từ bật sang tắt và ngược lại
-void powerPressHold()
-{
-    digitalWrite(PIN_SIM808_POWER, LOW);
-    delay(1000);
-    digitalWrite(PIN_SIM808_POWER, HIGH);
-    delay(3000);
-}
-
-// Tắt tất cả các led hiệu, tất cả các led hiệu trong danh sách sẽ được tắt, tức set về mức LOW (0) cho tất cả
-void turnOffAllLed()
-{
-    for (size_t j = 0; j < (int)sizeof(PIN_LIST) / sizeof(int); j++)
-    {
-        setDigitalSignal(PIN_LIST[j], LOW);
-    }
-}
-
-// Bật tất cả các led hiệu, tất cả các led hiệu sẽ được bật, tức set về mức HIGH (1) cho tất cả
-void turnOnAllLed()
-{
-    for (size_t j = 0; j < sizeof(PIN_LIST) / sizeof(int); j++)
-    {
-        setDigitalSignal(PIN_LIST[j], HIGH);
-    }
-}
-
-// Đổi trạng thái của led hiệu lỗi, khi led đang trại thái HIGH (1) thì chuyển sang LOW (0) và ngược lại
-void changeStateErrorSignalLed()
-{
-    if (signalError > 0)
-        setDigitalSignal(PIN_SIGNAL_ERROR, LOW);
-    else
-        setDigitalSignal(PIN_SIGNAL_ERROR, HIGH);
-}
-
-// Nháy led hiệu lỗi theo định kỳ @delay_ms cho bật và tắt, lặp lại @loop lần. Như vậy tổng thời gian cho @loop lần nháy sẽ là 2*@delay_ms*@loop
-void BlinkErrorSignalLed(int delay_ms = 500, int loop = 1)
-{
-    for (int i = 0; i < loop; i++)
-    {
-        delay(delay_ms);
-        changeStateErrorSignalLed();
-        delay(delay_ms);
-        changeStateErrorSignalLed();
-    }
-}
-
-// Đổi trạng thái của led hiệu Gps, tức là khi đang ở HIGH (1) sẽ chuyển sang LOW (0) và ngược lại
-void changeStateGpsSignalLed()
-{
-    if (signalData > 0)
-        setDigitalSignal(PIN_SIGNAL_GPS, LOW);
-    else
-        setDigitalSignal(PIN_SIGNAL_GPS, HIGH);
-}
-// Nháy led hiệu GPS theo định kỳ @delay_ms cho bật và tắt, lặp lại @loop lần. Như vậy tổng thời gian cho @loop lần nháy sẽ là 2*@delay_ms*@loop
-void blinkGpsSignalLed(int delay_ms = 500, int loop = 1)
-{
-    for (int i = 0; i < loop; i++)
-    {
-        delay(delay_ms);
-        changeStateGpsSignalLed();
-        delay(delay_ms);
-        changeStateGpsSignalLed();
-    }
-}
-
-// Đổi trạng thái led tín hiệu đang gửi dữ liệu, tức là khi đang ở HIGH (1) sẽ chuyển thành LOW (0) và ngược lại
-void changeStateDataSignalLed()
-{
-    if (signalData > 0)
-        setDigitalSignal(PIN_SIGNAL_DATA, LOW);
-    else
-        setDigitalSignal(PIN_SIGNAL_DATA, HIGH);
-}
-
-// Nháy led hiệu đang gửi dữ liệu theo định kỳ @delay_ms cho bật và tắt, lặp lại @loop lần. Như vậy tổng thời gian cho @loop lần nháy sẽ là 2*@delay_ms*@loop
-void blinkDataSignalLed(int delay_ms = 500, int loop = 1)
-{
-    for (int i = 0; i < loop; i++)
-    {
-        delay(delay_ms);
-        changeStateDataSignalLed();
-        delay(delay_ms);
-        changeStateDataSignalLed();
-    }
-}
-
-// Hàm đổi trạng thái chân của led hiệu nguồn sim808, nếu chân đang ở trạng thái HIGH (1) thì sẽ chuyển sang LOW (0) và ngược lại
-void changeStatePowerSignalLed()
-{
-    if (signalPwr > 0)
-        setDigitalSignal(PIN_SIGNAL_PWR, LOW);
-    else
-        setDigitalSignal(PIN_SIGNAL_PWR, HIGH);
-}
-
-// Nháy led hiệu nguồn của sim808 theo định kỳ @delay_ms cho bật và tắt, lặp lại @loop lần. Như vậy tổng thời gian cho @loop lần nháy sẽ là 2*@delay_ms*@loop
-void blinkPowerSignalLed(int delay_ms = 500, int loop = 1)
-{
-    for (int i = 0; i < loop; i++)
-    {
-        delay(delay_ms);
-        changeStatePowerSignalLed();
-        delay(delay_ms);
-        changeStatePowerSignalLed();
-    }
-}
-
-// Nháy tất cả các led hiệu theo số lần nhất định là @loop, mặc định là 1 lần
-void blinkAll(int loop = 1)
-{
-    for (int i = 0; i < loop; i++)
-    {
-        turnOffAllLed();
-        delay(300);
-        turnOnAllLed();
-        delay(300);
-    }
-    turnOffAllLed();
-}
-
-// Khởi tạo và thiết lập các chân pin cho các led tín hiệu
-void initPinMode()
-{
-    // Đặt tất cả chân led tín hiệu của led là chân đầu ra hết, tức đều là OUTPUT
-    pinMode(PIN_SIM808_POWER, OUTPUT);
-    pinMode(PIN_SIGNAL_DATA, OUTPUT);
-    pinMode(PIN_SIGNAL_ERROR, OUTPUT);
-    pinMode(PIN_SIGNAL_GPS, OUTPUT);
-    pinMode(PIN_SIGNAL_PWR, OUTPUT);
-    // Nháy thử kiểm tra các đèn xem có hoạt động không, để xem cái nào cháy, cái nào không
-    blinkAll(2);
-}
-
-// Phương thức reset Board điều khiển Arduino UNO, sử dụng lệnh assembly để dịch thanh ghi về vị trí đầu tiên.
-void resetBoardUno()
-{
-    asm volatile("jmp 0");
-}
-
-// Đợi cho đến khi GPRS khả dụng, nếu só lần kiểm tra vượt quá @MAX_WAIT_TIME_WHEN_LOST_GPRS thì tiến hành thử bật lại GPRS
-void waitForGprsAvailable()
-{
-    int waitCount = 0;
-    while (!checkGprsReady()) // Wait until gprs available
-    {
-        BlinkErrorSignalLed(200, 5);
-        delay(1000);
-        if (waitCount > MAX_WAIT_TIME_WHEN_LOST_GPRS)
-        {
-            tryToTurnOnGprs();
-            break;
-        }
-    }
-}
-
 // Đợi cho sim808 thức dậy, nếu số lỗi vượt quá @maxErr thì tiến hành bật lại nguồn và kiểm tra lại
 void waitForSim808WakeUp(int maxErr = 5)
 {
@@ -230,274 +54,6 @@ void waitForSim808WakeUp(int maxErr = 5)
     }
     if (errCount < maxErr)
         setDigitalSignal(PIN_SIGNAL_PWR, HIGH);
-}
-
-// Thử bật lại GPRS, nếu bật thử vượt quá số lần @MAX_OPEN_GPRS_FAIL_TIMES thì tiến hành chuyển mạch sang chế độ máy bay, đợi một lúc và chuyển lại chế độ bình thường, sau đó tiến hành thử bật lại, sau khi bật lại thành công, tiến hành đợi mạch thức dậy, sau khi hoàn tất, tiến hành kiểm tra lại GPRS có khả dụng hay không
-void tryToTurnOnGprs()
-{
-    int countTurnOnGprsFail = 0;
-    while (sendAtCommand("AT+CGATT=1", 1000, true).indexOf("OK") < 0)
-    {
-        blinkPowerSignalLed(50, 10);
-        countTurnOnGprsFail++;
-        if (countTurnOnGprsFail > MAX_OPEN_GPRS_FAIL_TIMES)
-        {
-            setDigitalSignal(PIN_SIGNAL_ERROR, HIGH);
-            sim808Serial.println("AT+CFUN=0");
-            delay(5000);
-            sim808Serial.println("AT+CFUN=1");
-            delay(5000);
-        }
-        else
-            blinkPowerSignalLed(50, 10);
-    }
-    if (countTurnOnGprsFail > MAX_OPEN_GPRS_FAIL_TIMES)
-    {
-        delay(5000);
-        waitForSim808WakeUp();
-    }
-    waitForGprsAvailable();
-    countTurnOnGprsFail = 0;
-}
-
-// Phương thức tổng hợp thiết lập cho mạch, bao gồm việc lấy các thông số cần thiết như IMEI, và các cấu hình từ xa từ mạng internet
-void setupModule()
-{
-    isSettingUp = true;       // Cho biết đang trong chế độ setup
-    Serial.begin(9600);       // Đặt serial baudrate của UNO là 9600
-    sim808Serial.begin(9600); // Đặt serial baudrate của Sim808 là 9600 tương đương
-
-    if (DEBUG)
-        Serial.println("Start setting up...");
-    if (DEBUG)
-        Serial.println("Start init Pin Mode...");
-    initPinMode(); // Thiết lập các pinMode đầu tiên để có thể thực hiện thông báo qua đèn hiệu
-    if (DEBUG)
-        Serial.println("Finish init Pin mode.");
-    if (DEBUG)
-        Serial.println("Waking up device....");
-    waitForSim808WakeUp();              // Đợi cho mạch thức dậy, nếu không, tiến hành khởi dộng lại mạch
-    sendAtCommand("ATE0", 1000, DEBUG); // Tắt chế độ echo (vọng) lệnh đã gửi
-    if (DEBUG)
-        Serial.println("Waked up and turned off echo AT.");
-    if (DEBUG)
-        Serial.println("Getting device IMEI...");
-    getIMEI(); // tiến hành lấy IMEI của thiết bị
-    if (DEBUG)
-        Serial.println("Getted IMEI.");
-    if (DEBUG)
-        Serial.println("Getting set up from internet...");
-    getSetUpFromInternet(); // Tiến hành lấy các thông tin từ internet
-    if (DEBUG)
-        Serial.println("Finish set up from internet...");
-    if (DEBUG)
-        Serial.println("Powering on GPS...");
-    powerOnGps(); // Bật GPS lên
-    if (DEBUG)
-        Serial.println("Powerd on GPS.");
-    isSettingUp = false;                    // Cho biết đã kết thúc chế độ setup
-    setDigitalSignal(PIN_SIGNAL_PWR, HIGH); // Bật đèn hiệu nguồn lên luôn, thể hiện cho việc đã setup xong
-    if (DEBUG)
-        Serial.println("Finish Main Set up!");
-}
-
-// Hàm khởi tạo HTTP và xây dựng các tham số cho truy vấn trong chuỗi url, sau đó gửi qua sim808 luôn
-void initHttpAndBuildUrlQuery()
-{
-    String balanceMsgRecived = "";                              // Khởi tạo biến chứa tin nhắn phản hồi từ việc yêu cầu kiểm tra tài khoản
-    if (nextActionCode == 1)                                    // Nếu có yêu cầu kiểm tra tài khoản từ phía server
-        balanceMsgRecived = getBalanceAndWriteToSim808Serial(); // Thì tiến hành gọi phương thức kiểm tra và lưu trũ giá trị tin nhắn phản hồi vào biến
-    sendAtCommand("AT+HTTPINIT", 1200, DEBUG);                  // Tiến hành khởi tạo giao thức HTTP nếu nó chưa có, có rồi thì sẽ trả về ERROR, nên cứ kệ
-    /* Khu vực tiến hành xây dụng các tham số, đồng thời gửi qua sim808 thông qua serial tức thì
-     * Các tham số ngoài này sẽ là mặc định cho mọi gói tin, bao gồm gps=<giá trị gps>&imei=<imei của thiết bị>
-     */
-    sim808Serial.write("AT+HTTPPARA=\"URL\",\"http://");
-    if (DEBUG)
-        Serial.write("AT+HTTPPARA=\"URL\",\"http://");
-
-    sim808Serial.write(serverAddress);
-    if (DEBUG)
-        Serial.write(serverAddress);
-
-    sim808Serial.write(":");
-    if (DEBUG)
-        Serial.write(":");
-
-    sim808Serial.write(serverPort);
-    if (DEBUG)
-        Serial.write(serverPort);
-
-    sim808Serial.write("/?");
-    if (DEBUG)
-        Serial.write("/?");
-
-    sim808Serial.write(gpsParamPrefix);
-    if (DEBUG)
-        Serial.write(gpsParamPrefix);
-
-    sim808Serial.write("=");
-    if (DEBUG)
-        Serial.write("=");
-
-    sim808Serial.write(gpsData.c_str());
-    if (DEBUG)
-        Serial.write(gpsData.c_str());
-
-    sim808Serial.write("&");
-    if (DEBUG)
-        Serial.write("&");
-
-    sim808Serial.write(imeiParamPrefix);
-    if (DEBUG)
-        Serial.write(imeiParamPrefix);
-
-    sim808Serial.write("=");
-    if (DEBUG)
-        Serial.write("=");
-
-    sim808Serial.write(deviceIMEI.c_str());
-    if (DEBUG)
-        Serial.write(deviceIMEI.c_str());
-
-    // Đây sẽ là vùng giá trị tùy chọn, khi có yêu cầu kiểm tra tài khoản từ phía server
-    if (nextActionCode == 1)
-    {
-        sim808Serial.write("&");
-        if (DEBUG)
-            Serial.write("&");
-
-        sim808Serial.write(balanceParamPrefix);
-        if (DEBUG)
-            Serial.write(balanceParamPrefix);
-
-        sim808Serial.write("=");
-        if (DEBUG)
-            Serial.write("=");
-        for (size_t i = 0; i < balanceMsgRecived.length(); i++)
-        { // Sau khi nhận đuuợc tin nhắn, tiến hành lập qua từng ký tự trong tin nhắn này
-            if (balanceMsgRecived.charAt(i) != '\r' && balanceMsgRecived.charAt(i) != '\n')
-            { // Nếu ký tự này không phải là một trong các ký tự xuống hàng thì tiếp tục các lệnh sau, không thì tiến hành bỏ qua phần trong này
-                if (balanceMsgRecived.charAt(i) == ' ')
-                { // Nếu ký tự hiện tại là dấu cách, để đảm bảo tiêu chuẩn cho HTTP request URL, tiến hành đổi dấu cách thành dấu '_' để tạo tính liên kết trong URL
-                    sim808Serial.write('_');
-                    if (DEBUG)
-                        Serial.write('_');
-                }
-                else
-                { // Nếu ký tự này là các ký tự thông thường, thì tiến hành in ra một cách nhẹ nhàng :))
-                    sim808Serial.write(balanceMsgRecived.charAt(i));
-                    if (DEBUG)
-                        Serial.write(balanceMsgRecived.charAt(i));
-                }
-            }
-        }
-    }
-    // Để kết thúc phần xây dựng các tham số, ta tiến hành gửi lệnh ngắt dòng để xác nhận
-    sim808Serial.write("\"\r\n");
-    if (DEBUG)
-        Serial.write("\"\r\n");
-    blinkDataSignalLed(50, 15); // Đợi khoảng 1.5s để lệnh được gửi hoàn tất
-}
-
-// hàm xử lý và lấy kêt quả trả về từ server
-void phraseResult(String res)
-{
-    // phân tích dữ liệu về việc gửi thành công hay không
-    sendResult.sendStatusCode = res.indexOf("{1,") >= 0;
-    if (res.indexOf(",0}") >= 0)
-        sendResult.nextActionCode = 0;
-    else if (res.indexOf(",1}") >= 0)
-        sendResult.nextActionCode = 1;
-    else if (res.indexOf(",100}") >= 0)
-        sendResult.nextActionCode = 100;
-    else if (res.indexOf(",101}") >= 0)
-        sendResult.nextActionCode = 101;
-    else if (res.indexOf(",102}") >= 0)
-        sendResult.nextActionCode = 102;
-    else if (res.indexOf(",103}") >= 0)
-        sendResult.nextActionCode = 103;
-    else if (res.indexOf(",200}") >= 0)
-        sendResult.nextActionCode = 200;
-    else if (res.indexOf(",201}") >= 0)
-        sendResult.nextActionCode = 201;
-    else if (res.indexOf(",202}") >= 0)
-        sendResult.nextActionCode = 202;
-    else if (res.indexOf(",300}") >= 0)
-    {
-        sendResult.nextActionCode = 300;
-        isGetRawGpsLocationData = false;
-    }
-    else if (res.indexOf(",301}") >= 0)
-    {
-        sendResult.nextActionCode = 301;
-        isGetRawGpsLocationData = true;
-    }
-}
-
-// hàm gửi giữ liệu GPS đã lấy được đến server
-void sendGpsData()
-{
-    String res = "";            // Biến tạm để lưu trữ giá trị kết quả trả về từ các lệnh AT cần thiết phía bên dưới
-    waitForGprsAvailable();     // Kiểm tra, đợi GPRS có ổn không trước khi gửi, nếu không thì thực hiện các hàm bật lại ở phía trên
-    isSendingData = true;       // Cho biết rằng đang trong quá trình gửi dữ liệu
-    initHttpAndBuildUrlQuery(); // Tiến hành gọi hàm thiết lập HTTP và gửi đi các tham số trong URL query
-
-    res = sendAtCommand("AT+HTTPACTION=0", 3000 + (nextActionCode == 1 ? 2000 : 0), DEBUG); // Tiến hành đẩy toàn bộ dữ liệu đã chuẩn bị lên server, thời gian đẩy phụ thuộc vào độ dài tin, nên khi có yêu cầu kiểm tra tài khoản, chiều dài tin nhắn hầu như gấp đôi nên tiến hành tăng thời gian gửi lên
-    if (res.indexOf("+HTTPACTION: 0,60") < 0)
-    {                                                    // Nếu kết quả của hành động này không thuộc mã 60x (601 hoặc 604) thì đã gửi thành công, và thực hiện các lệnh dưới
-        res = sendAtCommand("AT+HTTPREAD", 1000, DEBUG); // Tiến hành đọc dữ liệu
-        sim808Serial.println("AT+HTTPTERM");             // Ngắt dịch vụ HTTP sau khi đã hoàn tất
-        isSendingData = false;                           // Thông báo việc gửi tin nhắn đã hoàn tất
-        boolean isSendSuccessed = false;                 // Khai báo cờ kiểm tra gửi tin nhắn đã chắc chắn thành công hay chưa
-        phraseResult(res);
-        if (isSendSuccessed)
-        {                                            // Sau tất cả, nếu cờ kiểm tra thành công là đúng
-            MissMessageCount = 0;                    // Thiết lập cờ đếm số tin nhắn gửi sai liên tiếp về 0
-            setDigitalSignal(PIN_SIGNAL_DATA, LOW);  // tắt đèn tín hiệu gửi 1 lúc
-            delay(200);                              // Chờ
-            setDigitalSignal(PIN_SIGNAL_DATA, HIGH); // Bật lại một lúc lâu
-            delay(1000);                             // Chờ
-            setDigitalSignal(PIN_SIGNAL_DATA, LOW);  // và cuối cùng là tắt đi
-        }
-        else
-            MissMessageCount++; // Nếu cờ kiểm tra thành công là false (sai) thì tiến hành tăng cờ đếm số tin nhắn lỗi liên tiếp lên 1
-        if (MissMessageCount >= MAX_MISSED_MESSAGE_PACKET)
-        {                                                 // Nếu số tin nhắn lỗi liên tiếp đếm được lớn hơn hoặc bằng với @MAX_MISSED_MESSAGE_PACKET, thì
-            MissMessageCount = MAX_MISSED_MESSAGE_PACKET; // Đặt só tin nhắn lỗi vẫn bằng giới hạn, k cho tăng nữa, tránh bị tràn bộ đệm (Buffer overflow)
-            setDigitalSignal(PIN_SIGNAL_ERROR, HIGH);     // Thiết lập đèn hiển thị lỗi sáng lên liên tục
-        }
-    }
-    else if (res.indexOf("+HTTPACTION: 0,601") < 0)
-    {                                 // Có nghĩa là server hiện không khả dụng, tức lỗi 604
-        BlinkErrorSignalLed(1000, 5); // Nháy đèn lỗi 5 lần trong 10s
-    }
-    else
-    {                                 // Là lỗi 601, tức do thiết bị có mạng yếu hoặc không thiết lập kết nối thành công
-        BlinkErrorSignalLed(1000, 3); // Nháy đèn lỗi 3 lần trong 6s
-    }
-}
-
-// Hàm kiểm tra tài khoản
-String getBalanceAndWriteToSim808Serial()
-{
-    sendAtCommand("AT+CMGD=1,4", 1000, DEBUG);                                                                 // Xóa tất cả hộp thư đến, đề phòng hộp thư đầy
-    String balanceMsgRecived = sendAtCommand("AT+CUSD=1,\"" + String(checkBalanceSyntax) + "\"", 5000, DEBUG); // Tiến hành gửi lệnh kiểm tra tài khoản
-    if (balanceMsgRecived.indexOf("+CUSD: 2") >= 0)
-    { // Nếu trả về kết quả này, tức là cú pháp kiểm tra tài khoản bị sai
-        return "Syntax wrong";
-    }
-    else if (balanceMsgRecived.indexOf("+CUSD: 0, \"") >= 0)
-    {                                                  // Nếu trả về kết quả này thì kết quả kiểm tra thành công, tiến hành chuẩn hóa
-        balanceMsgRecived.replace("\r\n", "");         // Xóa bỏ tất cả các ký tự xuống hàng
-        balanceMsgRecived.replace("\", 15", "");       // Xóa bỏ cuỗi surfix ", 15 của chuỗi
-        balanceMsgRecived.replace("OK", "");           // Xóa chữ OK đầu chuỗi
-        balanceMsgRecived.replace("+CUSD: 0, \"", ""); // Xóa prefix +CUSD: 0,
-        return balanceMsgRecived;                      // Gửi chuỗi đã được chuẩn hóa đi
-    }
-    else
-    { // Nếu không nằm trong tất cả các trường hợp trên, lệnh kiểm tra tài khoản đã thất bại
-        return "Get Fail";
-    }
 }
 
 // Hàm lấy IMEI của thiết bị
@@ -553,15 +109,15 @@ void getSetUpFromInternet()
         getSetUpFromInternet();                   // Gọi lại thiết lập
         return;                                   // Trở về để ngăn cản việc gọi các lệnh dưới
     }
-    String x = sendAtCommand("AT+HTTPREAD", 1000, DEBUG);                // Đọc dữ liệu trả về
-    x = x.substring(x.indexOf("+HTTPREAD: ") + 11, x.indexOf("OK") - 1); // Chuẩn hóa, loại bỏ prefix và surfix
-    x = x.substring(x.indexOf("\r\n"));                                  // Xóa dấu xuống dòng
-    x.replace("\r\n", "");                                               // Xóa dấu xuống dòng
-    char str[x.length()];                                                // Khai báo biến tạm str để phục vụ việc cắt chuối để lấy tham số thiết lập
-    x.toCharArray(str, x.length());                                      // Chuyển string thành mảng char
-    char *pch;                                                           // Con trỏ tạm
-    pch = strtok(str, " ");                                              // Ngắt chuỗi bởi dấu cánh
-    int i = 0;                                                           // Đếm số chuỗi đã ngắt
+    res = sendAtCommand("AT+HTTPREAD", 1000, DEBUG);                             // Đọc dữ liệu trả về
+    res = res.substring(res.indexOf("+HTTPREAD: ") + 11, res.indexOf("OK") - 1); // Chuẩn hóa, loại bỏ prefix và surfix
+    res = res.substring(res.indexOf("\r\n"));                                    // Xóa dấu xuống dòng
+    res.replace("\r\n", "");                                                     // Xóa dấu xuống dòng
+    char str[res.length()];                                                      // Khai báo biến tạm str để phục vụ việc cắt chuối để lấy tham số thiết lập
+    res.toCharArray(str, res.length());                                          // Chuyển string thành mảng char
+    char *pch;                                                                   // Con trỏ tạm
+    pch = strtok(str, " ");                                                      // Ngắt chuỗi bởi dấu cánh
+    int i = 0;                                                                   // Đếm số chuỗi đã ngắt
 
     size_t MAX_INTERVAL = 50;             // Thời gian giới hạn cho led nháy
     unsigned long startMillis = millis(); // Thời gian khởi đầu đoạn lặp
@@ -611,7 +167,18 @@ void getSetUpFromInternet()
         pch = strtok(NULL, " "); // Cho các dấu cách là null để bỏ qua
         i++;                     // tăng biến số đếm
     }
-    if (DEBUG)
+    sendAtCommand("AT+HTTPTERM", 1000, DEBUG); // Ngắt dịch vụ HTTP
+    if (strlen(serverAddress) < 5 ||
+        strlen(serverPort) < 1 ||
+        strlen(gpsParamPrefix) < 1 ||
+        strlen(imeiParamPrefix) < 1 ||
+        strlen(balanceParamPrefix) < 1 ||
+        strlen(checkBalanceSyntax) < 1)
+    {
+        resetBoardUno();
+        return;
+    }
+    else if (DEBUG)
     {
         Serial.println("\n\n===== GETTED INFOMATION ======");
         Serial.print("* Server Address: [");
@@ -634,24 +201,6 @@ void getSetUpFromInternet()
         Serial.println("]");
         Serial.println("=========================\r\n");
     }
-    sendAtCommand("AT+HTTPTERM", 1000, true); // Ngắt dịch vụ HTTP
-}
-
-// Hàm kiểm tra trạng thái của GPS
-void checkGpsStatus()
-{
-    String x = sendAtCommand("AT+CGPSSTATUS?", 1000, DEBUG); // Gửi lệnh kiểm tra trạng thái
-    delay(50);                                               // Đợi sương sương 50ms
-    if (x.indexOf("Location 3D Fix") < 0)
-    {                                          // Nếu vị trí cưa phải Location 3D Fix thì
-        isGps3dFixed = false;                  // Đặt cờ trạng thái fixed là false (sai)
-        setDigitalSignal(PIN_SIGNAL_GPS, LOW); // tắt đèn hiệu GPS đi
-    }
-    else
-    { // Ngược lại bật đèn hiệu lên và đặt cờ là true
-        isGps3dFixed = true;
-        setDigitalSignal(PIN_SIGNAL_GPS, HIGH);
-    }
 }
 
 // Hàm bật GPS
@@ -667,9 +216,390 @@ void powerOnGps()
     blinkGpsSignalLed(50, 20);
     sendAtCommand("AT+CGPSPWR=1", 1000, DEBUG); //power ON GPS/GNS module
     blinkGpsSignalLed(50, 20);
-    sendAtCommand("AT+CGNSSEQ=RMC", 1000, DEBUG); //read GPRMC data
+    sendAtCommand("AT+CGNSSEQ=" + currentLocationDataType, 1000, DEBUG); //read GPRMC data
     blinkGpsSignalLed(50, 10);
     setDigitalSignal(PIN_SIGNAL_GPS, LOW);
+}
+
+// Phương thức tổng hợp thiết lập cho mạch, bao gồm việc lấy các thông số cần thiết như IMEI, và các cấu hình từ xa từ mạng internet
+void setupModule()
+{
+    isSettingUp = true;       // Cho biết đang trong chế độ setup
+    Serial.begin(9600);       // Đặt serial baudrate của UNO là 9600
+    sim808Serial.begin(9600); // Đặt serial baudrate của Sim808 là 9600 tương đương
+
+    if (DEBUG)
+        Serial.println("Start setting up...");
+    if (DEBUG)
+        Serial.println("Start init Pin Mode...");
+    initPinMode(); // Thiết lập các pinMode đầu tiên để có thể thực hiện thông báo qua đèn hiệu
+    if (DEBUG)
+        Serial.println("Finish init Pin mode.");
+    if (DEBUG)
+        Serial.println("Waking up device....");
+    waitForSim808WakeUp();              // Đợi cho mạch thức dậy, nếu không, tiến hành khởi dộng lại mạch
+    sendAtCommand("ATE0", 1000, DEBUG); // Tắt chế độ echo (vọng) lệnh đã gửi
+    if (DEBUG)
+        Serial.println("Waked up and turned off echo AT.");
+    if (DEBUG)
+        Serial.println("Getting device IMEI...");
+    getIMEI(); // tiến hành lấy IMEI của thiết bị
+    if (DEBUG)
+        Serial.println("Getted IMEI.");
+    if (DEBUG)
+        Serial.println("Getting set up from internet...");
+    getSetUpFromInternet(); // Tiến hành lấy các thông tin từ internet
+    if (DEBUG)
+        Serial.println("Finish set up from internet...");
+    if (DEBUG)
+        Serial.println("Powering on GPS...");
+    powerOnGps(); // Bật GPS lên
+    if (DEBUG)
+        Serial.println("Powerd on GPS.");
+    isSettingUp = false;                    // Cho biết đã kết thúc chế độ setup
+    setDigitalSignal(PIN_SIGNAL_PWR, HIGH); // Bật đèn hiệu nguồn lên luôn, thể hiện cho việc đã setup xong
+    if (DEBUG)
+        Serial.println("Finish Main Set up!");
+}
+
+// Đợi cho đến khi GPRS khả dụng, nếu só lần kiểm tra vượt quá @MAX_WAIT_TIME_WHEN_LOST_GPRS thì tiến hành thử bật lại GPRS
+void waitForGprsAvailable()
+{
+    int waitCount = 0;
+    while (!checkGprsReady()) // Wait until gprs available
+    {
+        BlinkErrorSignalLed(200, 5);
+        delay(1000);
+        if (waitCount > MAX_WAIT_TIME_WHEN_LOST_GPRS)
+        {
+            tryToTurnOnGprs();
+            break;
+        }
+    }
+}
+
+// Thử bật lại GPRS, nếu bật thử vượt quá số lần @MAX_OPEN_GPRS_FAIL_TIMES thì tiến hành chuyển mạch sang chế độ máy bay, đợi một lúc và chuyển lại chế độ bình thường, sau đó tiến hành thử bật lại, sau khi bật lại thành công, tiến hành đợi mạch thức dậy, sau khi hoàn tất, tiến hành kiểm tra lại GPRS có khả dụng hay không
+void tryToTurnOnGprs()
+{
+    int countTurnOnGprsFail = 0;
+    while (sendAtCommand("AT+CGATT=1", 1000, true).indexOf("OK") < 0)
+    {
+        blinkPowerSignalLed(50, 10);
+        countTurnOnGprsFail++;
+        if (countTurnOnGprsFail > MAX_OPEN_GPRS_FAIL_TIMES)
+        {
+            setDigitalSignal(PIN_SIGNAL_ERROR, HIGH);
+            sim808Serial.println("AT+CFUN=0");
+            delay(5000);
+            sim808Serial.println("AT+CFUN=1");
+            delay(5000);
+        }
+        else
+            blinkPowerSignalLed(50, 10);
+    }
+    if (countTurnOnGprsFail > MAX_OPEN_GPRS_FAIL_TIMES)
+    {
+        delay(5000);
+        waitForSim808WakeUp();
+    }
+    waitForGprsAvailable();
+    countTurnOnGprsFail = 0;
+}
+
+// Hàm khởi tạo HTTP và xây dựng các tham số cho truy vấn trong chuỗi url, sau đó gửi qua sim808 luôn
+void initHttpAndBuildUrlQuery()
+{
+    String balanceMsgRecived = "";                              // Khởi tạo biến chứa tin nhắn phản hồi từ việc yêu cầu kiểm tra tài khoản
+    if (nextActionCode == 1)                                    // Nếu có yêu cầu kiểm tra tài khoản từ phía server
+        balanceMsgRecived = getBalanceAndWriteToSim808Serial(); // Thì tiến hành gọi phương thức kiểm tra và lưu trũ giá trị tin nhắn phản hồi vào biến
+    sendAtCommand("AT+HTTPINIT", 1200, DEBUG);                  // Tiến hành khởi tạo giao thức HTTP nếu nó chưa có, có rồi thì sẽ trả về ERROR, nên cứ kệ
+    /* Khu vực tiến hành xây dụng các tham số, đồng thời gửi qua sim808 thông qua serial tức thì
+     * Các tham số ngoài này sẽ là mặc định cho mọi gói tin, bao gồm gps=<giá trị gps>&imei=<imei của thiết bị>
+     */
+    sim808Serial.write("AT+HTTPPARA=\"URL\",\"http://");
+    if (DEBUG)
+        Serial.write("AT+HTTPPARA=\"URL\",\"http://");
+
+    // Viết địa chỉ máy chủ vào terminal
+    sim808Serial.write(serverAddress);
+    if (DEBUG)
+        Serial.write(serverAddress);
+
+    sim808Serial.write(":");
+    if (DEBUG)
+        Serial.write(":");
+
+    // Đưa port
+    sim808Serial.write(serverPort);
+    if (DEBUG)
+        Serial.write(serverPort);
+
+    // Bắt đầu query
+    sim808Serial.write("/?");
+    if (DEBUG)
+        Serial.write("/?");
+
+    // tiền tố tham số 'gps'
+    sim808Serial.write(gpsParamPrefix);
+    if (DEBUG)
+        Serial.write(gpsParamPrefix);
+
+    sim808Serial.write("=");
+    if (DEBUG)
+        Serial.write("=");
+
+    // giá trị gps
+    sim808Serial.write(gpsData.c_str());
+    if (DEBUG)
+        Serial.write(gpsData.c_str());
+
+    sim808Serial.write("&");
+    if (DEBUG)
+        Serial.write("&");
+
+    // tiền tố tham số imei
+    sim808Serial.write(imeiParamPrefix);
+    if (DEBUG)
+        Serial.write(imeiParamPrefix);
+
+    sim808Serial.write("=");
+    if (DEBUG)
+        Serial.write("=");
+
+    // Giá trị imei
+    sim808Serial.write(deviceIMEI.c_str());
+    if (DEBUG)
+        Serial.write(deviceIMEI.c_str());
+
+    // Đây sẽ là vùng giá trị tùy chọn, khi có yêu cầu kiểm tra tài khoản từ phía server
+    if (nextActionCode == 1)
+    {
+        sim808Serial.write("&");
+        if (DEBUG)
+            Serial.write("&");
+
+        // Tiền tố tham só tài khoản
+        sim808Serial.write(balanceParamPrefix);
+        if (DEBUG)
+            Serial.write(balanceParamPrefix);
+
+        sim808Serial.write("=");
+        if (DEBUG)
+            Serial.write("=");
+
+        // thực hiện xử lý để in ra giá trị là nôi dung của tin nhan kiểm tra tài khoản
+        for (size_t i = 0; i < balanceMsgRecived.length(); i++)
+        { // Sau khi nhận đuuợc tin nhắn, tiến hành lập qua từng ký tự trong tin nhắn này
+            if (balanceMsgRecived.charAt(i) != '\r' && balanceMsgRecived.charAt(i) != '\n')
+            { // Nếu ký tự này không phải là một trong các ký tự xuống hàng thì tiếp tục các lệnh sau, không thì tiến hành bỏ qua phần trong này
+                if (balanceMsgRecived.charAt(i) == ' ')
+                { // Nếu ký tự hiện tại là dấu cách, để đảm bảo tiêu chuẩn cho HTTP request URL, tiến hành đổi dấu cách thành dấu '_' để tạo tính liên kết trong URL
+                    sim808Serial.write('_');
+                    if (DEBUG)
+                        Serial.write('_');
+                }
+                else
+                { // Nếu ký tự này là các ký tự thông thường, thì tiến hành in ra một cách nhẹ nhàng :))
+                    sim808Serial.write(balanceMsgRecived.charAt(i));
+                    if (DEBUG)
+                        Serial.write(balanceMsgRecived.charAt(i));
+                }
+            }
+        }
+    }
+    if (isAlwaysGetNetworkLocation || sendResult.nextActionCode == 401)
+    {
+        sim808Serial.write("&nl=");
+        if (DEBUG)
+            Serial.write("&nl=");
+        int commaCount = 0;
+        for (size_t i = 0; i < networkLocation.length(), commaCount <= 3; i++)
+        { // Sau khi nhận đuuợc tin nhắn, tiến hành lập qua từng ký tự trong tin nhắn này
+            if (networkLocation.charAt(i) != '\r' && networkLocation.charAt(i) != '\n')
+            { // Nếu ký tự này không phải là một trong các ký tự xuống hàng thì tiếp tục các lệnh sau, không thì tiến hành bỏ qua phần trong này
+                if (networkLocation.charAt(i) == ' ' || networkLocation.charAt(i) == '/')
+                { // Nếu ký tự hiện tại là dấu cách, để đảm bảo tiêu chuẩn cho HTTP request URL, tiến hành đổi dấu cách thành dấu '_' để tạo tính liên kết trong URL
+                    sim808Serial.write('_');
+                    if (DEBUG)
+                        Serial.write('_');
+                }
+                else
+                { // Nếu ký tự này là các ký tự thông thường, thì tiến hành in ra một cách nhẹ nhàng :))
+                    if (networkLocation.charAt(i) == ',')
+                        commaCount++;
+                    sim808Serial.write(networkLocation.charAt(i));
+                    if (DEBUG)
+                        Serial.write(networkLocation.charAt(i));
+                }
+            }
+        }
+    }
+    // phần đưa ra loại chuẩn của gps hiện tại
+    sim808Serial.write("&type=");
+    if (DEBUG)
+        Serial.write("&type=");
+    sim808Serial.write(currentLocationDataType.c_str());
+    if (DEBUG)
+        Serial.write(currentLocationDataType.c_str());
+    if (isGetRawGpsLocationData)
+    {
+        sim808Serial.write("|GPS");
+        if (DEBUG)
+            Serial.write("|GPS");
+    }
+    else
+    {
+        sim808Serial.write("|GNSS");
+        if (DEBUG)
+            Serial.write("|GNSS");
+    }
+    // Để kết thúc phần xây dựng các tham số, ta tiến hành gửi lệnh ngắt dòng để xác nhận
+    sim808Serial.write("\"\r\n");
+    if (DEBUG)
+        Serial.write("\"\r\n");
+    blinkDataSignalLed(50, 15); // Đợi khoảng 1.5s để lệnh được gửi hoàn tất
+}
+
+// hàm xử lý và lấy kêt quả trả về từ server
+void phraseResult(String res)
+{
+    // phân tích dữ liệu về việc gửi thành công hay không
+    sendResult.sendStatusCode = res.indexOf("{1,") >= 0;
+    if (res.indexOf(",0}") >= 0)
+        sendResult.nextActionCode = 0;
+    else if (res.indexOf(",1}") >= 0)
+        sendResult.nextActionCode = 1;
+    else if (res.indexOf(",100}") >= 0)
+        sendResult.nextActionCode = 100;
+    else if (res.indexOf(",101}") >= 0)
+        sendResult.nextActionCode = 101;
+    else if (res.indexOf(",102}") >= 0)
+        sendResult.nextActionCode = 102;
+    else if (res.indexOf(",103}") >= 0)
+        sendResult.nextActionCode = 103;
+    else if (res.indexOf(",200}") >= 0)
+        sendResult.nextActionCode = 200;
+    else if (res.indexOf(",201}") >= 0)
+        sendResult.nextActionCode = 201;
+    else if (res.indexOf(",202}") >= 0)
+        sendResult.nextActionCode = 202;
+    else if (res.indexOf(",300}") >= 0)
+    {
+        sendResult.nextActionCode = 300;
+        isGetRawGpsLocationData = false;
+    }
+    else if (res.indexOf(",301}") >= 0)
+    {
+        sendResult.nextActionCode = 301;
+        isGetRawGpsLocationData = true;
+    }
+    else if (res.indexOf(",400}") >= 0)
+    {
+        isAlwaysGetNetworkLocation = false;
+        sendResult.nextActionCode = 400;
+    }
+    else if (res.indexOf(",401}") >= 0)
+    {
+        sendResult.nextActionCode = 401;
+        isAlwaysGetNetworkLocation = false;
+    }
+    else if (res.indexOf(",402}") >= 0)
+    {
+        sendResult.nextActionCode = 402;
+        isAlwaysGetNetworkLocation = true;
+    }
+}
+
+// hàm gửi giữ liệu GPS đã lấy được đến server
+void sendGpsData()
+{
+    String res = "";            // Biến tạm để lưu trữ giá trị kết quả trả về từ các lệnh AT cần thiết phía bên dưới
+    isSendingData = true;       // Cho biết rằng đang trong quá trình gửi dữ liệu
+    initHttpAndBuildUrlQuery(); // Tiến hành gọi hàm thiết lập HTTP và gửi đi các tham số trong URL query
+
+    sendResult.nextActionCode = 0;
+    res = sendAtCommand("AT+HTTPACTION=0", 3000, DEBUG); // Tiến hành đẩy toàn bộ dữ liệu đã chuẩn bị lên server, thời gian đẩy phụ thuộc vào độ dài tin, nên khi có yêu cầu kiểm tra tài khoản, chiều dài tin nhắn hầu như gấp đôi nên tiến hành tăng thời gian gửi lên
+    if (res.indexOf("+HTTPACTION: 0,60") < 0)
+    {                                                    // Nếu kết quả của hành động này không thuộc mã 60x (601 hoặc 604) thì đã gửi thành công, và thực hiện các lệnh dưới
+        res = sendAtCommand("AT+HTTPREAD", 1000, DEBUG); // Tiến hành đọc dữ liệu
+        if (DEBUG)
+            Serial.println("Result from server: " + res);
+        sendAtCommand("AT+HTTPTERM", 1000, true); // Đóng dịnh vụ HTTP đã có
+        isSendingData = false;                    // Thông báo việc gửi tin nhắn đã hoàn tất
+        phraseResult(res);                        // Phân tích dữ liệu kết quả trả về từ server sau khi hoàn tất gửi gói tin
+        if (sendResult.sendStatusCode)
+        {                         // Sau tất cả, nếu cờ kiểm tra thành công là đúng
+            MissMessageCount = 0; // Thiết lập cờ đếm số tin nhắn gửi sai liên tiếp về 0
+            // setDigitalSignal(PIN_SIGNAL_DATA, LOW);  // tắt đèn tín hiệu gửi 1 lúc
+            // delay(200);                              // Chờ
+            // setDigitalSignal(PIN_SIGNAL_DATA, HIGH); // Bật lại một lúc lâu
+            // delay(1000);                             // Chờ
+            // setDigitalSignal(PIN_SIGNAL_DATA, LOW);  // và cuối cùng là tắt đi
+            if (DEBUG)
+                Serial.println("Send message successful!");
+        }
+        else
+        {
+            MissMessageCount++; // Nếu cờ kiểm tra thành công là false (sai) thì tiến hành tăng cờ đếm số tin nhắn lỗi liên tiếp lên 1
+            if (DEBUG)
+                Serial.println("Send message fail!");
+        }
+        if (MissMessageCount >= MAX_MISSED_MESSAGE_PACKET)
+        {                                                 // Nếu số tin nhắn lỗi liên tiếp đếm được lớn hơn hoặc bằng với @MAX_MISSED_MESSAGE_PACKET, thì
+            MissMessageCount = MAX_MISSED_MESSAGE_PACKET; // Đặt só tin nhắn lỗi vẫn bằng giới hạn, k cho tăng nữa, tránh bị tràn bộ đệm (Buffer overflow)
+            setDigitalSignal(PIN_SIGNAL_ERROR, HIGH);     // Thiết lập đèn hiển thị lỗi sáng lên liên tục
+            waitForGprsAvailable();                       // Kiểm tra, đợi GPRS có ổn không trước khi gửi, nếu không thì thực hiện các hàm bật lại ở phía trên
+        }
+    }
+    else if (res.indexOf("+HTTPACTION: 0,601") < 0)
+    {                                 // Có nghĩa là server hiện không khả dụng, tức lỗi 604
+        BlinkErrorSignalLed(1000, 5); // Nháy đèn lỗi 5 lần trong 10s
+    }
+    else
+    {                                 // Là lỗi 601, tức do thiết bị có mạng yếu hoặc không thiết lập kết nối thành công
+        BlinkErrorSignalLed(1000, 3); // Nháy đèn lỗi 3 lần trong 6s
+        waitForGprsAvailable();       // Kiểm tra, đợi GPRS có ổn không trước khi gửi, nếu không thì thực hiện các hàm bật lại ở phía trên
+    }
+}
+
+// Hàm kiểm tra tài khoản
+String getBalanceAndWriteToSim808Serial()
+{
+    sendAtCommand("AT+CMGD=1,4", 1000, DEBUG);                                                                 // Xóa tất cả hộp thư đến, đề phòng hộp thư đầy
+    String balanceMsgRecived = sendAtCommand("AT+CUSD=1,\"" + String(checkBalanceSyntax) + "\"", 5000, DEBUG); // Tiến hành gửi lệnh kiểm tra tài khoản
+    if (balanceMsgRecived.indexOf("+CUSD: 2") >= 0)
+    { // Nếu trả về kết quả này, tức là cú pháp kiểm tra tài khoản bị sai
+        return "Syntax wrong";
+    }
+    else if (balanceMsgRecived.indexOf("+CUSD: 0, \"") >= 0)
+    {                                                  // Nếu trả về kết quả này thì kết quả kiểm tra thành công, tiến hành chuẩn hóa
+        balanceMsgRecived.replace("\r\n", "");         // Xóa bỏ tất cả các ký tự xuống hàng
+        balanceMsgRecived.replace("\", 15", "");       // Xóa bỏ cuỗi surfix ", 15 của chuỗi
+        balanceMsgRecived.replace("OK", "");           // Xóa chữ OK đầu chuỗi
+        balanceMsgRecived.replace("+CUSD: 0, \"", ""); // Xóa prefix +CUSD: 0,
+        return balanceMsgRecived;                      // Gửi chuỗi đã được chuẩn hóa đi
+    }
+    else
+    { // Nếu không nằm trong tất cả các trường hợp trên, lệnh kiểm tra tài khoản đã thất bại
+        return "Get Fail";
+    }
+}
+
+// Hàm kiểm tra trạng thái của GPS
+void checkGpsStatus()
+{
+    String x = sendAtCommand("AT+CGPSSTATUS?", 1000, DEBUG); // Gửi lệnh kiểm tra trạng thái
+    delay(50);                                               // Đợi sương sương 50ms
+    if (x.indexOf("Location 3D Fix") < 0 && x.indexOf("Location 2D Fix") < 0)
+    {                                          // Nếu vị trí chưa phải Location 2D|3D Fix thì
+        isGps3dFixed = false;                  // Đặt cờ trạng thái fixed là false (sai)
+        setDigitalSignal(PIN_SIGNAL_GPS, LOW); // tắt đèn hiệu GPS đi
+    }
+    else
+    { // Ngược lại bật đèn hiệu lên và đặt cờ là true
+        isGps3dFixed = true;
+        setDigitalSignal(PIN_SIGNAL_GPS, HIGH);
+    }
 }
 
 // Hàm gửi lệnh AT chuẩn
@@ -722,23 +652,31 @@ void changeDataTypeGPS()
     switch (sendResult.nextActionCode)
     {
     case 100:
-        sendAtCommand("AT+CGNSSEQ=RMC", 1000, DEBUG); //read GPRMC data
+        currentLocationDataType = "RMC";
+        sendAtCommand("AT+CGNSSEQ=" + currentLocationDataType, 1000, DEBUG); //read GPRMC data
         blinkGpsSignalLed(50, 10);
         break;
     case 101:
-        sendAtCommand("AT+CGNSSEQ=GSV", 1000, DEBUG); //read GPRMC data
+        currentLocationDataType = "GSV";
+        sendAtCommand("AT+CGNSSEQ=" + currentLocationDataType, 1000, DEBUG); //read GPRMC data
         blinkGpsSignalLed(50, 10);
         break;
     case 102:
-        sendAtCommand("AT+CGNSSEQ=GSA", 1000, DEBUG); //read GPRMC data
+        currentLocationDataType = "GSA";
+        sendAtCommand("AT+CGNSSEQ=" + currentLocationDataType, 1000, DEBUG); //read GPRMC data
         blinkGpsSignalLed(50, 10);
         break;
     case 103:
-        sendAtCommand("AT+CGNSSEQ=GGA", 1000, DEBUG); //read GPRMC data
+        currentLocationDataType = "GGA";
+        sendAtCommand("AT+CGNSSEQ=" + currentLocationDataType, 1000, DEBUG); //read GPRMC data
         blinkGpsSignalLed(50, 10);
         break;
     default:
         break;
+    }
+    if (DEBUG && sendResult.nextActionCode >= 100 && sendResult.nextActionCode <= 103)
+    {
+        Serial.println("Change location data type to [" + currentLocationDataType + "]");
     }
 }
 
@@ -748,12 +686,18 @@ void resetGPSbyServer()
     switch (sendResult.nextActionCode)
     {
     case 200:
+        currentLocationDataType = "RMC";
+        sendAtCommand("AT+CGNSSEQ=" + currentLocationDataType, 1000, DEBUG); //read GPRMC data
         sendAtCommand("AT+CGPSRST=0", 2000, DEBUG);
         break;
     case 201:
+        currentLocationDataType = "RMC";
+        sendAtCommand("AT+CGNSSEQ=" + currentLocationDataType, 1000, DEBUG); //read GPRMC data
         sendAtCommand("AT+CGPSRST=1", 2000, DEBUG);
         break;
     case 202:
+        currentLocationDataType = "RMC";
+        sendAtCommand("AT+CGNSSEQ=" + currentLocationDataType, 1000, DEBUG); //read GPRMC data
         sendAtCommand("AT+CGPSRST=2", 2000, DEBUG);
         break;
     default:
@@ -764,6 +708,7 @@ void resetGPSbyServer()
 // Hàm lấy trí trị GPRS
 void getGpsData()
 {
+    changeDataTypeGPS();
     resetGPSbyServer();
     checkGpsStatus();
     if (isGps3dFixed)
@@ -813,6 +758,30 @@ void getGpsData()
         else
         {
             gpsData = "NULL";
+        }
+    }
+
+    if (isAlwaysGetNetworkLocation || sendResult.nextActionCode == 401)
+    {
+        networkLocation = sendAtCommand("AT+CIPGSMLOC=1,1", 1000, DEBUG);
+        //+CGPSINF: 0,2234.931817,11357.122485,92.461185,20141031041141.000,88,12,0.000000,0.000000
+        int prefixIndex = -1, // Cờ chỉ mục tiền tố trong chuỗi GPS, dùng để tìm prefix có dạng +CGNSINF:
+            surfixIndex = -1; // Cờ chỉ mục hậu tố trong chuỗi GPS, dùng để tìm surfix có dạng OK
+        // Cut prefix
+        prefixIndex = networkLocation.indexOf("+CIPGSMLOC:");
+        surfixIndex = networkLocation.lastIndexOf("OK");
+        surfixIndex = (surfixIndex >= 0 && surfixIndex < prefixIndex ? surfixIndex + 2 : networkLocation.length());
+        if (prefixIndex >= 0)
+        {
+            networkLocation = networkLocation.substring(prefixIndex, surfixIndex);
+            networkLocation.replace("\r\n", ""); // delete all new line
+            networkLocation.replace(" ", "");
+            networkLocation.replace("+CIPGSMLOC:", "");
+            networkLocation.replace("OK", "");
+        }
+        else
+        {
+            networkLocation = "NULL";
         }
     }
     // end region for get location
