@@ -11,3 +11,27 @@ Trungtam2019
 2. Đang gửi dữ liệu
 3. Báo sự cố (K join vô mạng được) - báo cảnh
 4. Đèn báo GPS
+
+- FORMAT JSON IN FIREBASE
+    - broad_cast: "http://192.168.1.24:5555 admin 123"
+    - list_device: "http://"
+    - server:
+        - CarTracking: "jcenter.sytes.net 3000 gps imei balance *101#"
+- RESPONSE FOR ACTION
+    - Format: {<send status code>, <action call code>}
+    - Send status code value: [0,1]
+    - Action call code:
+        0   -- Do no thing
+        1   -- Check balance
+        100 -- RMC (Is default value when start Module)
+        101 -- GSV
+        102 -- GSA
+        103 -- GGA
+        200 -- GPS Reset in Cold Start Mode
+        201 -- GPS Reset in Hot Start Mode
+        202 -- GPS Reset in Warm Start Mode
+        300 -- Get GNSS location data (default when start)
+        301 -- Get GPS location data (defalut RMC)
+
+    -- Note: When change about type, the result string send to server also change too,
+    you need check your case and pharse flow its document.

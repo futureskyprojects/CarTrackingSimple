@@ -22,15 +22,24 @@ char *checkBalanceSyntax; // Biến lưu trữ cú pháp tin nhắn kiểm tra t
 /*------------------------------------- Khai báo các biến toàn cục và chiếm hữu sẵn bộ nhớ cho chúng --------------------*/
 String gpsData = "";      // Biến lưu trữ giá trị trả về của GPS
 int MissMessageCount = 0; // Biến lưu trữ số gói tin lỗi liên tiếp hiện tại của thiết bị
+int nextActionCode = 0;   // Biến lưu trữ giá trị của hành động tiếp theo để yêu cầu cho module thực hiện
 
 /*------------------------------------- Danh sách các cờ logic ----------------------------------------------------------*/
-boolean isSettingUp = true;               // Cờ kiểm tra có phải đang tiến hành hàm setup() hay không
-boolean isSendingData = false;            // Cờ kiểm tra xem có đang gửi dữ liệu
-boolean isGps3dFixed = false;             // Cờ kiểm tra xem tọa độ của GPS có được định vị Loaction 3d fixed hay chưa
-boolean isGettingGpsData = false;         // Cờ kiểm tra xem có đang lấy dữ liệu GPS hay không
-boolean isOverMissedMessage = false;      // Cờ kiểm tra xem thiết bị có gửi mất gói tin vượt quá giới hạn hay chưa
-boolean isGprsAvailable = false;          // Cờ kiểm tra xem GPRS có đang hoạt động và có thể gửi tin hay không
-boolean isRequestCheckSimBalance = false; // Cờ kiểm tra xem có yêu cầu kiểm tra tài khoản từ server hay không
+boolean isSettingUp = true;          // Cờ kiểm tra có phải đang tiến hành hàm setup() hay không
+boolean isSendingData = false;       // Cờ kiểm tra xem có đang gửi dữ liệu
+boolean isGps3dFixed = false;        // Cờ kiểm tra xem tọa độ của GPS có được định vị Loaction 3d fixed hay chưa
+boolean isGettingGpsData = false;    // Cờ kiểm tra xem có đang lấy dữ liệu GPS hay không
+boolean isOverMissedMessage = false; // Cờ kiểm tra xem thiết bị có gửi mất gói tin vượt quá giới hạn hay chưa
+boolean isGprsAvailable = false;     // Cờ kiểm tra xem GPRS có đang hoạt động và có thể gửi tin hay không
+boolean isGetRawGpsLocationData = false;
+//boolean isRequestCheckSimBalance = false; // Cờ kiểm tra xem có yêu cầu kiểm tra tài khoản từ server hay không
+
+/*----*/
+struct _SendResult
+{
+    bool sendStatusCode = false;
+    int nextActionCode = 0;
+} sendResult;
 
 /*------------------------------------ Tường minh các phương thức đã được khai báo ---------------------------------------*/
 void setDigitalSignal(int Pin, int state) // Hàm cập nhật trạng thái tín hiệu cho các chân nằm trong danh sách đèn hiệu
@@ -296,7 +305,7 @@ void setupModule()
 void initHttpAndBuildUrlQuery()
 {
     String balanceMsgRecived = "";                              // Khởi tạo biến chứa tin nhắn phản hồi từ việc yêu cầu kiểm tra tài khoản
-    if (isRequestCheckSimBalance)                               // Nếu có yêu cầu kiểm tra tài khoản từ phía server
+    if (nextActionCode == 1)                                    // Nếu có yêu cầu kiểm tra tài khoản từ phía server
         balanceMsgRecived = getBalanceAndWriteToSim808Serial(); // Thì tiến hành gọi phương thức kiểm tra và lưu trũ giá trị tin nhắn phản hồi vào biến
     sendAtCommand("AT+HTTPINIT", 1200, DEBUG);                  // Tiến hành khởi tạo giao thức HTTP nếu nó chưa có, có rồi thì sẽ trả về ERROR, nên cứ kệ
     /* Khu vực tiến hành xây dụng các tham số, đồng thời gửi qua sim808 thông qua serial tức thì
@@ -351,7 +360,7 @@ void initHttpAndBuildUrlQuery()
         Serial.write(deviceIMEI.c_str());
 
     // Đây sẽ là vùng giá trị tùy chọn, khi có yêu cầu kiểm tra tài khoản từ phía server
-    if (isRequestCheckSimBalance)
+    if (nextActionCode == 1)
     {
         sim808Serial.write("&");
         if (DEBUG)
@@ -390,6 +399,41 @@ void initHttpAndBuildUrlQuery()
     blinkDataSignalLed(50, 15); // Đợi khoảng 1.5s để lệnh được gửi hoàn tất
 }
 
+// hàm xử lý và lấy kêt quả trả về từ server
+void phraseResult(String res)
+{
+    // phân tích dữ liệu về việc gửi thành công hay không
+    sendResult.sendStatusCode = res.indexOf("{1,") >= 0;
+    if (res.indexOf(",0}") >= 0)
+        sendResult.nextActionCode = 0;
+    else if (res.indexOf(",1}") >= 0)
+        sendResult.nextActionCode = 1;
+    else if (res.indexOf(",100}") >= 0)
+        sendResult.nextActionCode = 100;
+    else if (res.indexOf(",101}") >= 0)
+        sendResult.nextActionCode = 101;
+    else if (res.indexOf(",102}") >= 0)
+        sendResult.nextActionCode = 102;
+    else if (res.indexOf(",103}") >= 0)
+        sendResult.nextActionCode = 103;
+    else if (res.indexOf(",200}") >= 0)
+        sendResult.nextActionCode = 200;
+    else if (res.indexOf(",201}") >= 0)
+        sendResult.nextActionCode = 201;
+    else if (res.indexOf(",202}") >= 0)
+        sendResult.nextActionCode = 202;
+    else if (res.indexOf(",300}") >= 0)
+    {
+        sendResult.nextActionCode = 300;
+        isGetRawGpsLocationData = false;
+    }
+    else if (res.indexOf(",301}") >= 0)
+    {
+        sendResult.nextActionCode = 301;
+        isGetRawGpsLocationData = true;
+    }
+}
+
 // hàm gửi giữ liệu GPS đã lấy được đến server
 void sendGpsData()
 {
@@ -398,27 +442,14 @@ void sendGpsData()
     isSendingData = true;       // Cho biết rằng đang trong quá trình gửi dữ liệu
     initHttpAndBuildUrlQuery(); // Tiến hành gọi hàm thiết lập HTTP và gửi đi các tham số trong URL query
 
-    res = sendAtCommand("AT+HTTPACTION=0", 3000 + (isRequestCheckSimBalance ? 2000 : 0), DEBUG); // Tiến hành đẩy toàn bộ dữ liệu đã chuẩn bị lên server, thời gian đẩy phụ thuộc vào độ dài tin, nên khi có yêu cầu kiểm tra tài khoản, chiều dài tin nhắn hầu như gấp đôi nên tiến hành tăng thời gian gửi lên
+    res = sendAtCommand("AT+HTTPACTION=0", 3000 + (nextActionCode == 1 ? 2000 : 0), DEBUG); // Tiến hành đẩy toàn bộ dữ liệu đã chuẩn bị lên server, thời gian đẩy phụ thuộc vào độ dài tin, nên khi có yêu cầu kiểm tra tài khoản, chiều dài tin nhắn hầu như gấp đôi nên tiến hành tăng thời gian gửi lên
     if (res.indexOf("+HTTPACTION: 0,60") < 0)
     {                                                    // Nếu kết quả của hành động này không thuộc mã 60x (601 hoặc 604) thì đã gửi thành công, và thực hiện các lệnh dưới
         res = sendAtCommand("AT+HTTPREAD", 1000, DEBUG); // Tiến hành đọc dữ liệu
         sim808Serial.println("AT+HTTPTERM");             // Ngắt dịch vụ HTTP sau khi đã hoàn tất
         isSendingData = false;                           // Thông báo việc gửi tin nhắn đã hoàn tất
         boolean isSendSuccessed = false;                 // Khai báo cờ kiểm tra gửi tin nhắn đã chắc chắn thành công hay chưa
-        if (res.indexOf("{1,1}") >= 0)
-        {                                                      // Nếu lệnh trả về là {1,1}, số 1 đầu tiên là gửi thành công, số thứ 2 là mã lệnh, ở đây có mã lệnh yêu cầu kiểm tra tài khoản
-            isRequestCheckSimBalance = isSendSuccessed = true; // Đặt cờ yêu cầu kiểm tra tài khỏan, và cờ gửi thành công thành true (đúng)
-        }
-        else if (res.indexOf("{1,0}") >= 0)
-        { // Nếu lệnh trả về là {1,0}, số 1 đầu tiên tương tự, nhưng số 0 biể thị không yêu cầu kiểm tra tài khoản
-            // Vì vậy tiến hành đặt cờ yêu cầu kiểm tra tài khoản là false (sai), và cờ gửi tin nhắn thành công là phủ định của chúng true (đúng)
-            isSendSuccessed = !(isRequestCheckSimBalance = false);
-        }
-        else
-        {
-            // Các trường hợp khác coi như là sai, và set cả hai cờ về false (sai)
-            isSendSuccessed = isRequestCheckSimBalance = false;
-        }
+        phraseResult(res);
         if (isSendSuccessed)
         {                                            // Sau tất cả, nếu cờ kiểm tra thành công là đúng
             MissMessageCount = 0;                    // Thiết lập cờ đếm số tin nhắn gửi sai liên tiếp về 0
@@ -515,13 +546,13 @@ void getSetUpFromInternet()
     sendAtCommand("AT+SAPBR=1,1", 1000, DEBUG);                                                                                                 // Bật SAPBR
     sendAtCommand("AT+HTTPINIT", 1200, DEBUG);                                                                                                  // Khởi tạo HTTP                                                                                    //init the HTTP request
     res = sendAtCommand("AT+HTTPPARA=\"URL\",\"http://api.thingspeak.com/apps/thinghttp/send_request?api_key=SLJ10VVO4K9FVGJX\"", 2000, DEBUG); // Thiết lập các tham số trong HTTP
+    res = sendAtCommand("AT+HTTPACTION=0", 4000, DEBUG);                                                                                        // Đẩy các giá trị đi
     if (res.indexOf("+HTTPACTION: 0,60") >= 0)
     {                                             // Nếu kết quả trả về thuộc dạng 60x, thì cố gắng làm lại
         sendAtCommand("AT+HTTPTERM", 1000, true); // Đóng dịnh vụ HTTP đã có
         getSetUpFromInternet();                   // Gọi lại thiết lập
         return;                                   // Trở về để ngăn cản việc gọi các lệnh dưới
     }
-    sendAtCommand("AT+HTTPACTION=0", 4000, DEBUG);                       // Đẩy các giá trị đi
     String x = sendAtCommand("AT+HTTPREAD", 1000, DEBUG);                // Đọc dữ liệu trả về
     x = x.substring(x.indexOf("+HTTPREAD: ") + 11, x.indexOf("OK") - 1); // Chuẩn hóa, loại bỏ prefix và surfix
     x = x.substring(x.indexOf("\r\n"));                                  // Xóa dấu xuống dòng
@@ -579,6 +610,29 @@ void getSetUpFromInternet()
         }
         pch = strtok(NULL, " "); // Cho các dấu cách là null để bỏ qua
         i++;                     // tăng biến số đếm
+    }
+    if (DEBUG)
+    {
+        Serial.println("\n\n===== GETTED INFOMATION ======");
+        Serial.print("* Server Address: [");
+        Serial.print(serverAddress);
+        Serial.println("]");
+        Serial.print("* Server Port: [");
+        Serial.print(serverPort);
+        Serial.println("]");
+        Serial.print("* GPS Prefix: [");
+        Serial.print(gpsParamPrefix);
+        Serial.println("]");
+        Serial.print("* IMEI Prefix: [");
+        Serial.print(imeiParamPrefix);
+        Serial.println("]");
+        Serial.print("* Balance Prefix: [");
+        Serial.print(balanceParamPrefix);
+        Serial.println("]");
+        Serial.print("* Balance Check Syntax: [");
+        Serial.print(checkBalanceSyntax);
+        Serial.println("]");
+        Serial.println("=========================\r\n");
     }
     sendAtCommand("AT+HTTPTERM", 1000, true); // Ngắt dịch vụ HTTP
 }
@@ -662,32 +716,106 @@ boolean checkGprsReady()
         return isGprsAvailable = true;
 }
 
+// hàm sửa loại dữ liệu trả về của GNSS hay GPS
+void changeDataTypeGPS()
+{
+    switch (sendResult.nextActionCode)
+    {
+    case 100:
+        sendAtCommand("AT+CGNSSEQ=RMC", 1000, DEBUG); //read GPRMC data
+        blinkGpsSignalLed(50, 10);
+        break;
+    case 101:
+        sendAtCommand("AT+CGNSSEQ=GSV", 1000, DEBUG); //read GPRMC data
+        blinkGpsSignalLed(50, 10);
+        break;
+    case 102:
+        sendAtCommand("AT+CGNSSEQ=GSA", 1000, DEBUG); //read GPRMC data
+        blinkGpsSignalLed(50, 10);
+        break;
+    case 103:
+        sendAtCommand("AT+CGNSSEQ=GGA", 1000, DEBUG); //read GPRMC data
+        blinkGpsSignalLed(50, 10);
+        break;
+    default:
+        break;
+    }
+}
+
+// hàm reset lại GPS theo cách được server chỉ định
+void resetGPSbyServer()
+{
+    switch (sendResult.nextActionCode)
+    {
+    case 200:
+        sendAtCommand("AT+CGPSRST=0", 2000, DEBUG);
+        break;
+    case 201:
+        sendAtCommand("AT+CGPSRST=1", 2000, DEBUG);
+        break;
+    case 202:
+        sendAtCommand("AT+CGPSRST=2", 2000, DEBUG);
+        break;
+    default:
+        break;
+    }
+}
+
 // Hàm lấy trí trị GPRS
 void getGpsData()
 {
+    resetGPSbyServer();
     checkGpsStatus();
     if (isGps3dFixed)
         isGettingGpsData = true;
-    gpsData = sendAtCommand("AT+CGNSINF", 1000, DEBUG);
-    //+CGNSINF: 1,1,20161122182451.000,13.019292,77.686463,919.200,0.15,10.5,1,,0.9,2.0,1.8,,12,9,,,47,,
-    int prefixIndex = -1, // Cờ chỉ mục tiền tố trong chuỗi GPS, dùng để tìm prefix có dạng +CGNSINF:
-        surfixIndex = -1; // Cờ chỉ mục hậu tố trong chuỗi GPS, dùng để tìm surfix có dạng OK
-    // Cut prefix
-    prefixIndex = gpsData.indexOf("+CGNSINF:");
-    surfixIndex = gpsData.lastIndexOf("OK");
-    surfixIndex = (surfixIndex >= 0 && surfixIndex < prefixIndex ? surfixIndex + 2 : gpsData.length());
-    if (prefixIndex >= 0)
+    // Region for get location
+    if (!isGetRawGpsLocationData)
     {
-        gpsData = gpsData.substring(prefixIndex, surfixIndex);
-        gpsData.replace("\r\n", ""); // delete all new line
-        gpsData.replace(" ", "");
-        gpsData.replace("+CGNSINF:", "");
-        gpsData.replace("OK", "");
+        gpsData = sendAtCommand("AT+CGNSINF", 1000, DEBUG);
+        //+CGNSINF: 1,1,20161122182451.000,13.019292,77.686463,919.200,0.15,10.5,1,,0.9,2.0,1.8,,12,9,,,47,,
+        int prefixIndex = -1, // Cờ chỉ mục tiền tố trong chuỗi GPS, dùng để tìm prefix có dạng +CGNSINF:
+            surfixIndex = -1; // Cờ chỉ mục hậu tố trong chuỗi GPS, dùng để tìm surfix có dạng OK
+        // Cut prefix
+        prefixIndex = gpsData.indexOf("+CGNSINF:");
+        surfixIndex = gpsData.lastIndexOf("OK");
+        surfixIndex = (surfixIndex >= 0 && surfixIndex < prefixIndex ? surfixIndex + 2 : gpsData.length());
+        if (prefixIndex >= 0)
+        {
+            gpsData = gpsData.substring(prefixIndex, surfixIndex);
+            gpsData.replace("\r\n", ""); // delete all new line
+            gpsData.replace(" ", "");
+            gpsData.replace("+CGNSINF:", "");
+            gpsData.replace("OK", "");
+        }
+        else
+        {
+            gpsData = "NULL";
+        }
     }
     else
     {
-        gpsData = "NULL";
+        gpsData = sendAtCommand("AT+CGPSINF=0", 1000, DEBUG);
+        //+CGPSINF: 0,2234.931817,11357.122485,92.461185,20141031041141.000,88,12,0.000000,0.000000
+        int prefixIndex = -1, // Cờ chỉ mục tiền tố trong chuỗi GPS, dùng để tìm prefix có dạng +CGNSINF:
+            surfixIndex = -1; // Cờ chỉ mục hậu tố trong chuỗi GPS, dùng để tìm surfix có dạng OK
+        // Cut prefix
+        prefixIndex = gpsData.indexOf("+CGPSINF:");
+        surfixIndex = gpsData.lastIndexOf("OK");
+        surfixIndex = (surfixIndex >= 0 && surfixIndex < prefixIndex ? surfixIndex + 2 : gpsData.length());
+        if (prefixIndex >= 0)
+        {
+            gpsData = gpsData.substring(prefixIndex, surfixIndex);
+            gpsData.replace("\r\n", ""); // delete all new line
+            gpsData.replace(" ", "");
+            gpsData.replace("+CGPSINF:", "");
+            gpsData.replace("OK", "");
+        }
+        else
+        {
+            gpsData = "NULL";
+        }
     }
+    // end region for get location
     if (isGps3dFixed)
     {
         setDigitalSignal(PIN_SIGNAL_GPS, HIGH);

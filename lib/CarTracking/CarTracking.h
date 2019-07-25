@@ -8,9 +8,9 @@
 #define MAX_OPEN_GPRS_FAIL_TIMES 15         // Số lần tối đa mở GPRS không thành công trước khi thực hiện đổ sáng chế độ máy bay rồi sang chế độ thường
 #define MAX_WAIT_TIME_WHEN_LOST_GPRS 300000 // x phút đợi GPRS trước khi cho khởi động lại
 
-#define DEBUG false // Sử dụng để bật hoặc tắt trạng thái debug
-#define RX 3        // Chân RX mặc định
-#define TX 2        // Chân TX mặc định
+#define DEBUG true // Sử dụng để bật hoặc tắt trạng thái debug
+#define RX 3       // Chân RX mặc định
+#define TX 2       // Chân TX mặc định
 
 #define PIN_GPS_PWR 5      // Chân nguồn của GPS
 #define PIN_SIM808_POWER 9 // Chân nguồn sim808
@@ -48,4 +48,7 @@ void getSetUpFromInternet(void);
 void powerOnGps(void);
 boolean checkGprsReady(void);
 void getGpsData(void);
+void changeDataTypeGPS(void);
+void phraseResult(String);
+void resetGPSbyServer(void);
 #endif
