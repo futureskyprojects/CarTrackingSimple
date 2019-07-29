@@ -19,6 +19,7 @@
 #define PIN_SIGNAL_DATA A1  // Đang gửi dữ liệu
 #define PIN_SIGNAL_GPS A2   // Báo GPS
 #define PIN_SIGNAL_ERROR A3 // Báo cảnh - Báo lỗi
+
 /*------------------------------------ Danh sách các phương thức được định nghĩa ------------------------------------------*/
 String sendAtCommand(String, const int, boolean);
 void checkGpsStatus(void);

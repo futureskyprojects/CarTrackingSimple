@@ -242,6 +242,14 @@ void setupModule()
     if (DEBUG)
         Serial.println("Waked up and turned off echo AT.");
     if (DEBUG)
+        Serial.println("Wait for sim Ready");
+    while (sendAtCommand("AT+CREG?", 1000, DEBUG).indexOf("+CREG: 0,1") < 0)
+    {
+        BlinkErrorSignalLed(10, 200);
+    }
+    if (DEBUG)
+        Serial.println("Sim was ready!");
+    if (DEBUG)
         Serial.println("Getting device IMEI...");
     getIMEI(); // tiến hành lấy IMEI của thiết bị
     if (DEBUG)
